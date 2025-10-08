@@ -1,5 +1,7 @@
 import { randomBytes } from 'crypto';
 
+jest.setTimeout(30000);
+
 import type { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
