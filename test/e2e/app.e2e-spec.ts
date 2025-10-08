@@ -104,10 +104,7 @@ describe('AppModule e2e', () => {
     const repository = dataSource.getRepository(UserEntity);
     user = await repository.save(
       repository.create({
-        displayName: 'Test User',
-        email: 'test@example.com',
-        avatarUrl: null,
-        isActive: true
+        displayName: 'Test User'
       })
     );
   });
@@ -123,7 +120,7 @@ describe('AppModule e2e', () => {
     const nonce = base64UrlEncode(randomBytes(12));
     const query = {
       id: user.id,
-      fields: ['id', 'displayName', 'email', 'createdAt']
+      fields: ['id', 'displayName']
     };
     const dataPayload = {
       p: 1234,
@@ -173,8 +170,7 @@ describe('AppModule e2e', () => {
     const decoded = JSON.parse(base64UrlDecode(response.body.d).toString('utf8'));
     expect(decoded).toMatchObject({
       id: user.id,
-      displayName: 'Test User',
-      email: 'test@example.com'
+      displayName: 'Test User'
     });
   });
 

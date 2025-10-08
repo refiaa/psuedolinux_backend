@@ -10,7 +10,7 @@ export class UsersService {
   constructor(@InjectRepository(UserEntity) private readonly repository: Repository<UserEntity>) {}
 
   async findUserView(query: UserQueryDto): Promise<Record<string, unknown>> {
-    const user = await this.repository.findOne({ where: { id: query.id, isActive: true } });
+    const user = await this.repository.findOne({ where: { id: query.id } });
     if (!user) {
       throw new NotFoundException('User not found');
     }

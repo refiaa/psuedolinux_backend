@@ -2,12 +2,7 @@ import { ArrayNotEmpty, IsArray, IsIn, IsUUID } from 'class-validator';
 
 export const USER_SELECTABLE_FIELDS = [
   'id',
-  'displayName',
-  'email',
-  'avatarUrl',
-  'isActive',
-  'createdAt',
-  'updatedAt'
+  'displayName'
 ] as const;
 
 export type UserSelectableField = (typeof USER_SELECTABLE_FIELDS)[number];

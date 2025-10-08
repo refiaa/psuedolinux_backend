@@ -19,24 +19,19 @@ describe('UsersService', () => {
   it('should return requested fields when user exists', async () => {
     const user: UserEntity = Object.assign(new UserEntity(), {
       id: 'a4f1e5d9-54a4-4d61-b4e4-fd974420fe12',
-      displayName: 'Alice',
-      email: 'alice@example.com',
-      isActive: true,
-      createdAt: new Date('2024-01-01T00:00:00Z'),
-      updatedAt: new Date('2024-01-02T00:00:00Z')
+      displayName: 'Alice'
     });
     (repository.findOne as jest.Mock).mockResolvedValue(user);
 
     const dto: UserQueryDto = {
       id: user.id,
-      fields: ['id', 'displayName', 'email']
+      fields: ['id', 'displayName']
     };
 
     const result = await service.findUserView(dto);
     expect(result).toEqual({
       id: user.id,
-      displayName: 'Alice',
-      email: 'alice@example.com'
+      displayName: 'Alice'
     });
   });
 
