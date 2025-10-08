@@ -34,7 +34,8 @@ export class RemoveSensitiveUserColumns1759901489355 implements MigrationInterfa
         name: 'email',
         type: 'varchar',
         length: '256',
-        isNullable: false
+        isNullable: false,
+        default: "concat('restored_', uuid_generate_v4())"
       }),
       new TableColumn({
         name: 'avatar_url',
@@ -60,8 +61,12 @@ export class RemoveSensitiveUserColumns1759901489355 implements MigrationInterfa
     ];
 
     for (const column of columnsToAdd) {
-      if (!table.findColumnByName(column.name)) {
+      const exists = table.findColumnByName(column.name);
+      if (!exists) {
         await queryRunner.addColumn('users', column);
+        if (column.name === 'email') {
+          await queryRunner.query('ALTER TABLE "users" ALTER COLUMN "email" DROP DEFAULT');
+        }
       }
     }
 

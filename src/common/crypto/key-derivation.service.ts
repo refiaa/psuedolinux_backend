@@ -1,10 +1,9 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { hkdfSync, createHash } from 'crypto';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
-import { KMSClient, DecryptCommand } from '@aws-sdk/client-kms';
 
-import { AWS_KMS, AWS_SECRETS_MANAGER } from '../../infra/aws/aws.constants';
+import { AWS_SECRETS_MANAGER } from '../../infra/aws/aws.constants';
 
 type CryptoConfig = {
   keyDerivationInfoHmac: string;
@@ -37,11 +36,11 @@ export class KeyDerivationService {
   private readonly logger = new Logger(KeyDerivationService.name);
   private readonly keyCache = new Map<string, CachedKeySet>();
   private secretsPayload?: SecretsManagerPayload;
+  private secretsPayloadExpiresAt = 0;
 
   constructor(
     private readonly configService: ConfigService,
-    @Inject(AWS_SECRETS_MANAGER) private readonly secretsManager: SecretsManagerClient,
-    @Inject(AWS_KMS) private readonly kmsClient: KMSClient
+    @Inject(AWS_SECRETS_MANAGER) private readonly secretsManager: SecretsManagerClient
   ) {}
 
   async deriveKeySet(version: number, worldId: string, internalId?: string): Promise<DerivedKeySet> {
@@ -50,7 +49,7 @@ export class KeyDerivationService {
       throw new Error('Crypto configuration is missing');
     }
     if (!cryptoConfig.allowedRequestVersion.includes(version)) {
-      throw new Error(`Requested crypto version is not allowed: ${version}`);
+      throw new UnauthorizedException(`Requested crypto version is not allowed: ${version}`);
     }
 
     const cacheKey = `${version}:${worldId}:${internalId ?? 'global'}`;
@@ -84,7 +83,7 @@ export class KeyDerivationService {
       return this.decodeSecretString(override.trim(), version);
     }
 
-    if (!this.secretsPayload) {
+    if (!this.secretsPayload || Date.now() > this.secretsPayloadExpiresAt) {
       await this.fetchSecretsPayload();
     }
 
@@ -116,15 +115,7 @@ export class KeyDerivationService {
     if (response.SecretString) {
       secretString = response.SecretString;
     } else if (response.SecretBinary) {
-      const decryptCommand = new DecryptCommand({
-        CiphertextBlob: response.SecretBinary,
-        KeyId: awsConfig.kmsKeyId
-      });
-      const decrypted = await this.kmsClient.send(decryptCommand);
-      if (!decrypted.Plaintext) {
-        throw new Error('KMS decryption returned no Plaintext');
-      }
-      secretString = Buffer.from(decrypted.Plaintext).toString('utf8');
+      secretString = Buffer.from(response.SecretBinary as Uint8Array).toString('utf8');
     }
 
     if (!secretString) {
@@ -137,11 +128,21 @@ export class KeyDerivationService {
         throw new Error('versions field is missing or invalid');
       }
       this.secretsPayload = parsed;
+      this.secretsPayloadExpiresAt = Date.now() + this.resolveSecretsCacheTtl();
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Failed to parse Secrets Manager payload: ${err.message}`);
       throw new Error('Secrets Manager payload validation failed');
     }
+  }
+
+  private resolveSecretsCacheTtl(): number {
+    const cryptoConfig = this.configService.get<CryptoConfig>('crypto');
+    if (!cryptoConfig) {
+      throw new Error('Crypto configuration is missing');
+    }
+    const ttlSeconds = Math.max(cryptoConfig.keyRotationGraceSeconds, 60);
+    return ttlSeconds * 1000;
   }
 
   private decodeSecretString(value: string, version: number): Buffer {
