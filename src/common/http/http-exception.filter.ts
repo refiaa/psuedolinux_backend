@@ -22,20 +22,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
     const traceId = randomUUID();
+    const sanitizedPath = this.sanitizeUrl(request.originalUrl ?? request.url ?? request.path ?? '');
 
     const { status, message, details } = this.normalizeException(exception);
 
     const errorResponse: ErrorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: request.originalUrl ?? request.url,
+      path: sanitizedPath,
       method: request.method,
       traceId,
       message,
       details
     };
 
-    this.logger.error(`HTTP ${status} ${request.method} ${request.url} traceId=${traceId}`);
+    this.logger.error(`HTTP ${status} ${request.method} ${sanitizedPath} traceId=${traceId}`);
 
     response.status(status).json(errorResponse);
   }
@@ -55,5 +56,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       message: 'An unexpected error occurred'
     };
+  }
+
+  private sanitizeUrl(url: string): string {
+    if (!url) {
+      return '';
+    }
+    const [path, query] = url.split('?', 2);
+    return query ? `${path}?[redacted]` : path;
   }
 }

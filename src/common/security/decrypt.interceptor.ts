@@ -34,13 +34,18 @@ export class DecryptInterceptor implements NestInterceptor {
 
     const associatedData = this.cryptoService.buildAssociatedData(request, state.version);
 
-    const plaintext = this.aeadService.decrypt({
-      ciphertext: base64UrlDecode(state.aeadComponents.ciphertext),
-      key: state.derivedKeys.aeadKey,
-      associatedData,
-      iv: base64UrlDecode(state.aeadComponents.iv),
-      authTag: base64UrlDecode(state.aeadComponents.tag)
-    });
+    let plaintext: Buffer;
+    try {
+      plaintext = this.aeadService.decrypt({
+        ciphertext: base64UrlDecode(state.aeadComponents.ciphertext),
+        key: state.derivedKeys.aeadKey,
+        associatedData,
+        iv: base64UrlDecode(state.aeadComponents.iv),
+        authTag: base64UrlDecode(state.aeadComponents.tag)
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Encrypted payload validation failed');
+    }
 
     try {
       return JSON.parse(plaintext.toString('utf8'));

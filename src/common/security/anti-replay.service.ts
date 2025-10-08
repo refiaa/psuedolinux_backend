@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 
@@ -10,6 +10,8 @@ type SecurityConfig = {
 
 @Injectable()
 export class AntiReplayService {
+  private readonly logger = new Logger(AntiReplayService.name);
+
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly configService: ConfigService
@@ -31,7 +33,9 @@ export class AntiReplayService {
       if (error instanceof ConflictException) {
         throw error;
       }
-      throw new ServiceUnavailableException(`Anti-replay check failed: ${(error as Error).message}`);
+      const err = error as Error;
+      this.logger.error('Anti-replay Redis interaction failed', err.stack ?? err.message);
+      throw new ServiceUnavailableException('Anti-replay validation is temporarily unavailable');
     }
   }
 }

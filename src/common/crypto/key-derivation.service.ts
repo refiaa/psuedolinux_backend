@@ -141,7 +141,8 @@ export class KeyDerivationService {
     if (!cryptoConfig) {
       throw new Error('Crypto configuration is missing');
     }
-    const ttlSeconds = Math.max(cryptoConfig.keyRotationGraceSeconds, 60);
+    const capped = Math.min(cryptoConfig.keyRotationGraceSeconds, 3600);
+    const ttlSeconds = Math.max(capped, 60);
     return ttlSeconds * 1000;
   }
 

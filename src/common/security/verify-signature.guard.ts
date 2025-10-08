@@ -12,6 +12,13 @@ import type { SecureRequestState } from './secure-request.interface';
 
 const base64urlRegex = /^[A-Za-z0-9_-]+$/;
 
+const MAX_NONCE_LENGTH = 256;
+const MAX_WORLD_ID_LENGTH = 128;
+const MAX_INSTANCE_ID_LENGTH = 128;
+const MAX_CIPHERTEXT_LENGTH = 4096;
+const MAX_IV_LENGTH = 128;
+const MAX_TAG_LENGTH = 128;
+
 const plainPayloadSchema = z.object({
   p: z.number({ invalid_type_error: 'p must be a number' }).nonnegative(),
   m: z.union([z.literal(0), z.literal(1)]),
@@ -19,9 +26,16 @@ const plainPayloadSchema = z.object({
   c: z.number({ invalid_type_error: 'c must be a number' }).positive(),
   t: z.number({ invalid_type_error: 't must be a number' }).int().positive(),
   x: z.number({ invalid_type_error: 'x must be a number' }).int().positive(),
-  n: z.string().regex(base64urlRegex, 'nonce must be base64url encoded'),
-  wrld: z.string().min(1),
-  iid: z.string().min(1).optional(),
+  n: z
+    .string()
+    .max(MAX_NONCE_LENGTH, 'nonce is too long')
+    .regex(base64urlRegex, 'nonce must be base64url encoded'),
+  wrld: z.string().min(1).max(MAX_WORLD_ID_LENGTH, 'worldId is too long'),
+  iid: z
+    .string()
+    .min(1)
+    .max(MAX_INSTANCE_ID_LENGTH, 'instanceId is too long')
+    .optional(),
   q: z.unknown()
 });
 
@@ -32,12 +46,28 @@ const encryptedMetadataSchema = z.object({
   pc: z.string().regex(/^\d+$/).transform(Number),
   t: z.string().regex(/^\d+$/).transform(Number),
   x: z.string().regex(/^\d+$/).transform(Number),
-  n: z.string().regex(base64urlRegex),
-  wrld: z.string().min(1),
-  iid: z.string().min(1).optional(),
-  c: z.string().regex(base64urlRegex),
-  iv: z.string().regex(base64urlRegex),
-  tag: z.string().regex(base64urlRegex)
+  n: z
+    .string()
+    .max(MAX_NONCE_LENGTH, 'nonce is too long')
+    .regex(base64urlRegex),
+  wrld: z.string().min(1).max(MAX_WORLD_ID_LENGTH, 'worldId is too long'),
+  iid: z
+    .string()
+    .min(1)
+    .max(MAX_INSTANCE_ID_LENGTH, 'instanceId is too long')
+    .optional(),
+  c: z
+    .string()
+    .max(MAX_CIPHERTEXT_LENGTH, 'ciphertext is too long')
+    .regex(base64urlRegex),
+  iv: z
+    .string()
+    .max(MAX_IV_LENGTH, 'iv is too long')
+    .regex(base64urlRegex),
+  tag: z
+    .string()
+    .max(MAX_TAG_LENGTH, 'tag is too long')
+    .regex(base64urlRegex)
 });
 
 type SecurityConfig = {

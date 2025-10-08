@@ -10,22 +10,30 @@ export class LoggingInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
+    const originalUrl = request.originalUrl ?? request.url ?? request.path;
+    const sanitizedUrl = this.sanitizeUrl(originalUrl, request.path);
     const start = Date.now();
 
     return next.handle().pipe(
       tap({
         next: () => {
           const duration = Date.now() - start;
-          this.logger.log(`${request.method} ${request.originalUrl ?? request.url} ${request.ip} ${duration}ms`);
+          this.logger.log(`${request.method} ${sanitizedUrl} ${request.ip} ${duration}ms`);
         },
         error: (error: unknown) => {
           const duration = Date.now() - start;
           this.logger.error(
-            `${request.method} ${request.originalUrl ?? request.url} ${request.ip} ${duration}ms error`,
+            `${request.method} ${sanitizedUrl} ${request.ip} ${duration}ms error`,
             (error as Error)?.stack ?? String(error)
           );
         }
       })
     );
+  }
+
+  private sanitizeUrl(originalUrl: string, fallbackPath: string | undefined): string {
+    const base = originalUrl || fallbackPath || '';
+    const [path, query] = base.split('?', 2);
+    return query ? `${path}?[redacted]` : path;
   }
 }
